@@ -140,7 +140,7 @@ add_action('ocdi/before_import', 'mindbridge_wipe_site_before_import');
 function mindbridge_ocdi_after_import_setup()
 {
 
-	$menu = get_term_by('name', 'Primary Menu', 'nav_menu');
+	$menu = get_term_by('name', 'Header', 'nav_menu');
 	if ($menu) {
 		set_theme_mod(
 			'nav_menu_locations',
@@ -151,10 +151,14 @@ function mindbridge_ocdi_after_import_setup()
 	}
 
 	$home = get_page_by_title('Home');
-	if ($home) {
+	$blog = get_page_by_title('Blog');
+
+	if ($home && $blog) {
 		update_option('show_on_front', 'page');
 		update_option('page_on_front', (int) $home->ID);
+		update_option('page_for_posts', (int) $blog->ID);
 	}
+
 }
 add_action('ocdi/after_import', 'mindbridge_ocdi_after_import_setup', 10);
 
@@ -181,7 +185,13 @@ function mindbridge_import_customizer_data()
 	}
 
 	if (!empty($data['mods'])) {
+		$old_url = 'https://siteproofs.com/projects/mind-bridge/mindbridge-new/';
+		$new_url = home_url('/');
+
 		foreach ($data['mods'] as $key => $value) {
+			if (is_string($value)) {
+				$value = str_replace($old_url, $new_url, $value);
+			}
 			set_theme_mod(sanitize_key($key), $value);
 		}
 	}
@@ -323,7 +333,6 @@ function mindbridge_ocdi_show_page()
 }
 add_filter('ocdi/show_import_page', 'mindbridge_ocdi_show_page');
 
-
 /**
  * ------------------------------------------------------------------
  * Import Fluent Forms
@@ -409,13 +418,149 @@ function mindbridge_import_fluent_forms()
 }
 add_action('ocdi/after_import', 'mindbridge_import_fluent_forms', 20);
 
-add_action( 'pt-ocdi/after_import', 'mytheme_set_elementor_global_settings' );
-function mytheme_set_elementor_global_settings() {
+add_action('pt-ocdi/after_import', 'mytheme_set_elementor_global_settings');
+function mytheme_set_elementor_global_settings()
+{
 
-    // Disable Default Colors
-    update_option( 'elementor_disable_color_schemes', 'yes' );
+	// Disable Default Colors
+	update_option('elementor_disable_color_schemes', 'yes');
 
-    // Disable Default Fonts
-    update_option( 'elementor_disable_typography_schemes', 'yes' );
+	// Disable Default Fonts
+	update_option('elementor_disable_typography_schemes', 'yes');
 
 }
+
+/**
+ * ------------------------------------------------------------------
+ * Replace old URL with home URL after import
+ * ------------------------------------------------------------------
+ */
+function mindbridge_ocdi_replace_urls()
+{
+	global $wpdb;
+	$old_url = 'https://siteproofs.com/projects/mind-bridge/mindbridge-new/';
+	$new_url = home_url('/');
+
+	if ($old_url === $new_url) {
+		return;
+	}
+
+	// 1. Update posts content
+	$wpdb->query($wpdb->prepare(
+		"UPDATE {$wpdb->posts} SET post_content = REPLACE(post_content, %s, %s)",
+		$old_url,
+		$new_url
+	));
+
+	// 2. Update postmeta (specifically for Elementor data and other non-serialized meta)
+	// Elementor stores data in JSON, so REPLACE is safe.
+	$wpdb->query($wpdb->prepare(
+		"UPDATE {$wpdb->postmeta} SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_key = '_elementor_data' OR meta_value NOT LIKE 's:%%'",
+		$old_url,
+		$new_url
+	));
+
+	// 3. Update options table (excluding serialized data to be safe)
+	$wpdb->query($wpdb->prepare(
+		"UPDATE {$wpdb->options} SET option_value = REPLACE(option_value, %s, %s) WHERE option_value NOT LIKE 's:%%' AND option_name NOT LIKE '_transient_%'",
+		$old_url,
+		$new_url
+	));
+}
+add_action('ocdi/after_import', 'mindbridge_ocdi_replace_urls', 50);
+
+
+/**
+ * ------------------------------------------------------------------
+ * Update Default Fluent Form (Subscription Form – ID 2)
+ * ------------------------------------------------------------------
+ */
+function mindbridge_update_default_fluent_form()
+{
+
+	if (!function_exists('wpFluent')) {
+		return;
+	}
+
+	$form_id = 2;
+	$form_name = 'Subscription Form';
+
+	// Load demo Fluent form JSON
+	$file = plugin_dir_path(__FILE__) . 'demo/fluent-forms.json';
+	if (!file_exists($file)) {
+		return;
+	}
+
+	$forms = json_decode(file_get_contents($file), true);
+	if (empty($forms) || !is_array($forms)) {
+		return;
+	}
+
+	// Get existing form
+	$existing_form = wpFluent()
+		->table('fluentform_forms')
+		->where('id', $form_id)
+		->first();
+
+	if (!$existing_form || $existing_form->title !== $form_name) {
+		return;
+	}
+
+	// Find Subscription Form from demo JSON
+	foreach ($forms as $form) {
+
+		if (empty($form['title']) || $form['title'] !== $form_name) {
+			continue;
+		}
+
+		$update_data = array(
+			'title' => sanitize_text_field($form['title']),
+			'form_fields' => wp_json_encode($form['form_fields']),
+			'updated_at' => current_time('mysql'),
+		);
+
+		if (isset($form['appearance_settings'])) {
+			$update_data['appearance_settings'] = wp_json_encode($form['appearance_settings']);
+		}
+
+		if (isset($form['settings'])) {
+			$update_data['settings'] = wp_json_encode($form['settings']);
+		}
+
+		wpFluent()
+			->table('fluentform_forms')
+			->where('id', $form_id)
+			->update($update_data);
+
+		/**
+		 * ------------------------------------------
+		 * Update Form Meta
+		 * ------------------------------------------
+		 */
+		if (!empty($form['form_meta']) && is_array($form['form_meta'])) {
+
+			wpFluent()
+				->table('fluentform_form_meta')
+				->where('form_id', $form_id)
+				->delete();
+
+			foreach ($form['form_meta'] as $meta) {
+
+				if (empty($meta['meta_key'])) {
+					continue;
+				}
+
+				wpFluent()->table('fluentform_form_meta')->insert([
+					'form_id' => $form_id,
+					'meta_key' => sanitize_text_field($meta['meta_key']),
+					'value' => is_array($meta['value'])
+						? wp_json_encode($meta['value'])
+						: $meta['value'],
+				]);
+			}
+		}
+
+		break;
+	}
+}
+add_action('ocdi/after_import', 'mindbridge_update_default_fluent_form', 35);
