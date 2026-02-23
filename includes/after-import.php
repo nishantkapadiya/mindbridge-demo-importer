@@ -545,6 +545,7 @@ function mindbridge_set_demo_branding_and_fallbacks() {
 		'category_filter_icon'       => 'Category',
 		'audience_filter_icon'       => 'Audience',
 		'therapy_filter_icon'        => 'Therapy-Type',
+		'error_404_image'            => '404',
 	);
 
 	foreach ( $branding_urls as $theme_mod => $image_title ) {
