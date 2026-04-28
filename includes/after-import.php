@@ -51,31 +51,43 @@ add_action( 'ocdi/after_import', 'mindbridge_ocdi_after_import_setup', 10 );
  */
 function mindbridge_sync_header_menu_after_customizer() {
 	// Only run if the theme is active.
-	if ( wp_get_theme()->get( 'TextDomain' ) !== 'mindbridge' ) {
+	if ( wp_get_theme()->get_template() !== 'mindbridge' ) {
 		return;
+	}
+
+	// Remap Nav Menu Locations.
+	$locations = get_theme_mod( 'nav_menu_locations' );
+	if ( ! is_array( $locations ) ) {
+		$locations = array();
 	}
 
 	// Remap Header Menu.
 	$main_menu = get_term_by( 'slug', 'main-menu', 'nav_menu' );
 	if ( $main_menu && isset( $main_menu->term_id ) ) {
 		set_theme_mod( 'header_menu', (int) $main_menu->term_id );
+		$locations['primary'] = (int) $main_menu->term_id;
 	}
 
 	// Remap Footer Menus.
 	$footer_menu_1 = get_term_by( 'slug', 'footer-menu-1', 'nav_menu' );
 	if ( $footer_menu_1 && isset( $footer_menu_1->term_id ) ) {
 		set_theme_mod( 'footer_menu_quick_links', (int) $footer_menu_1->term_id );
+		$locations['footer_menu_1'] = (int) $footer_menu_1->term_id;
 	}
 
 	$footer_menu_2 = get_term_by( 'slug', 'footer-menu-2', 'nav_menu' );
 	if ( $footer_menu_2 && isset( $footer_menu_2->term_id ) ) {
 		set_theme_mod( 'footer_menu_patient_links', (int) $footer_menu_2->term_id );
+		$locations['footer_menu_2'] = (int) $footer_menu_2->term_id;
 	}
 
 	$utility_menu = get_term_by( 'slug', 'utility-menu', 'nav_menu' );
 	if ( $utility_menu && isset( $utility_menu->term_id ) ) {
 		set_theme_mod( 'footer_menu_utility', (int) $utility_menu->term_id );
+		$locations['footer_links'] = (int) $utility_menu->term_id;
 	}
+
+	set_theme_mod( 'nav_menu_locations', $locations );
 
 	// Remap Blog Category Selector if empty or invalid.
 	$current_cat = get_theme_mod( 'post_category_selector' );
@@ -105,7 +117,7 @@ add_action( 'ocdi/after_import', 'mindbridge_sync_header_menu_after_customizer',
  * @since 1.0.0
  */
 function mindbridge_dedupe_menu_items_after_import() {
-	if ( wp_get_theme()->get( 'TextDomain' ) !== 'mindbridge' ) {
+	if ( wp_get_theme()->get_template() !== 'mindbridge' ) {
 		return;
 	}
 
@@ -159,7 +171,7 @@ add_action( 'ocdi/after_import', 'mindbridge_dedupe_menu_items_after_import', 45
  * @since 1.0.0
  */
 function mindbridge_import_customizer_data() {
-	if ( wp_get_theme()->get( 'TextDomain' ) !== 'mindbridge' ) {
+	if ( wp_get_theme()->get_template() !== 'mindbridge' ) {
 		return;
 	}
 
@@ -528,7 +540,7 @@ add_action( 'ocdi/after_import', 'mindbridge_update_default_fluent_form', 35 );
  * @since 1.0.0
  */
 function mindbridge_set_demo_branding_and_fallbacks() {
-	if ( wp_get_theme()->get( 'TextDomain' ) !== 'mindbridge' ) {
+	if ( wp_get_theme()->get_template() !== 'mindbridge' ) {
 		return;
 	}
 

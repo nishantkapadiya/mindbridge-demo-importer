@@ -88,6 +88,6 @@ add_filter( 'ocdi/import_files', 'mindbridge_ocdi_import_files' );
  * @since  1.0.0
  */
 function mindbridge_ocdi_show_page( $show ) {
-	return ( wp_get_theme()->get( 'TextDomain' ) === 'mindbridge' );
+	return ( wp_get_theme()->get_template() === 'mindbridge' );
 }
 add_filter( 'ocdi/show_import_page', 'mindbridge_ocdi_show_page' );

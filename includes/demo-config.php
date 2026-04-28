@@ -25,7 +25,7 @@ function mindbridge_get_demo_config() {
 	$base_path = plugin_dir_path( dirname( __FILE__ ) ) . 'demo/';
 	$base_url  = plugin_dir_url( dirname( __FILE__ ) ) . 'demo/';
 
-	// 'old_url' => 'https://siteproofs.com/projects/mind-bridge/mindbridge-new/',
+	// 'old_url' => 'http://192.168.1.81/shared-projects/zealousweb/free-theme/mindbridge/',
 	return array(
 		'old_url' => 'http://192.168.1.81/shared-projects/zealousweb/free-theme/mindbridge/',
 		'files'   => array(
